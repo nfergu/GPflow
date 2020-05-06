@@ -14,6 +14,7 @@ def base_conditional(
     full_cov=False,
     q_sqrt: Optional[tf.Tensor] = None,
     white=False,
+    Lm=None
 ):
     r"""
     Given a g1 and g2, and distribution p and q such that
@@ -75,7 +76,8 @@ def base_conditional(
     )
 
     leading_dims = tf.shape(Kmn)[:-2]
-    Lm = tf.linalg.cholesky(Kmm)  # [M, M]
+    if Lm is None:
+        Lm = tf.linalg.cholesky(Kmm)  # [M, M]
 
     # Compute the projection matrix A
     Lm = tf.broadcast_to(Lm, tf.concat([leading_dims, tf.shape(Lm)], 0))  # [..., M, M]

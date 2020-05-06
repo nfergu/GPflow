@@ -22,6 +22,8 @@ def _conditional(
     full_output_cov=False,
     q_sqrt=None,
     white=False,
+    Kmm=None,
+    Lm=None,
 ):
     """
     Single-output GP conditional.
@@ -54,11 +56,12 @@ def _conditional(
         Please see `gpflow.conditional._expand_independent_outputs` for more information
         about the shape of the variance, depending on `full_cov` and `full_output_cov`.
     """
-    Kmm = Kuu(inducing_variable, kernel, jitter=default_jitter())  # [M, M]
+    if Kmm is None:
+        Kmm = Kuu(inducing_variable, kernel, jitter=default_jitter())  # [M, M]
     Kmn = Kuf(inducing_variable, kernel, Xnew)  # [M, N]
     Knn = kernel(Xnew, full_cov=full_cov)
     fmean, fvar = base_conditional(
-        Kmn, Kmm, Knn, f, full_cov=full_cov, q_sqrt=q_sqrt, white=white
+        Kmn, Kmm, Knn, f, full_cov=full_cov, q_sqrt=q_sqrt, white=white, Lm=Lm
     )  # [N, R],  [R, N, N] or [N, R]
     return fmean, expand_independent_outputs(fvar, full_cov, full_output_cov)
 
@@ -74,6 +77,8 @@ def _conditional(
     full_output_cov=False,
     q_sqrt=None,
     white=False,
+    Kmm=None,
+    Lm=None
 ):
     """
     Given f, representing the GP at the points X, produce the mean and
@@ -109,9 +114,11 @@ def _conditional(
         - mean:     [N, R]
         - variance: [N, R] (full_cov = False), [R, N, N] (full_cov = True)
     """
-    Kmm = kernel(X) + eye(tf.shape(X)[-2], value=default_jitter(), dtype=X.dtype)  # [..., M, M]
+    if Kmm is None:
+        Kmm = kernel(X) + eye(tf.shape(X)[-2], value=default_jitter(), dtype=X.dtype)  # [..., M, M]
     Kmn = kernel(X, Xnew)  # [M, ..., N]
     Knn = kernel(Xnew, full_cov=full_cov)  # [..., N] (full_cov = False) or [..., N, N] (True)
-    mean, var = base_conditional(Kmn, Kmm, Knn, f, full_cov=full_cov, q_sqrt=q_sqrt, white=white)
+    mean, var = base_conditional(Kmn, Kmm, Knn, f, full_cov=full_cov, q_sqrt=q_sqrt, white=white,
+                                 Lm=Lm)
 
     return mean, var  # [N, R], [N, R] or [R, N, N]

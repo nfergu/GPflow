@@ -16,14 +16,16 @@ from typing import Tuple
 import numpy as np
 import tensorflow as tf
 
-from .. import kullback_leiblers
+from .. import kullback_leiblers, default_jitter
 from ..base import Parameter
 from ..conditionals import conditional
 from ..config import default_float
+from ..covariances import Kuu
 from ..utilities import positive, triangular
 from .model import GPModel, InputData, RegressionData, MeanAndVariance
 from .training_mixins import ExternalDataTrainingLossMixin
 from .util import inducingpoint_wrapper
+from ..utilities.ops import eye
 
 
 class SVGP(GPModel, ExternalDataTrainingLossMixin):
@@ -76,6 +78,9 @@ class SVGP(GPModel, ExternalDataTrainingLossMixin):
         # init variational parameters
         num_inducing = len(self.inducing_variable)
         self._init_variational_parameters(num_inducing, q_mu, q_sqrt, q_diag)
+
+        self.Kmm = Kuu(self.inducing_variable, self.kernel, jitter=default_jitter())  # [M, M]
+        self.Lm = tf.linalg.cholesky(self.Kmm)
 
     def _init_variational_parameters(self, num_inducing, q_mu, q_sqrt, q_diag):
         """
@@ -166,6 +171,8 @@ class SVGP(GPModel, ExternalDataTrainingLossMixin):
             full_cov=full_cov,
             white=self.whiten,
             full_output_cov=full_output_cov,
+            Kmm=self.Kmm,
+            Lm=self.Lm
         )
         # tf.debugging.assert_positive(var)  # We really should make the tests pass with this here
         return mu + self.mean_function(Xnew), var
